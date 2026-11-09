@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CrystalDiskInfo 디스크 관리대장 변환기</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Tesseract.js (무료 로컬 OCR) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+    .badge-critical { @apply bg-red-100 text-red-800 border border-red-200 font-semibold; }
+    .badge-warning { @apply bg-amber-100 text-amber-800 border border-amber-200 font-semibold; }
+    .badge-good { @apply bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold; }
+    .drag-active { @apply border-blue-500 bg-blue-50/70; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Top Header -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-blue-600 p-2 rounded-lg text-white">
+          <i data-lucide="hard-drive" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold flex items-center gap-2">
+            CrystalDiskInfo 디스크 관리대장 변환기
+            <span class="text-xs bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded-full font-normal">100% 무료 지원</span>
+          </h1>
+          <p class="text-xs text-slate-400">사진 드래그 또는 크리스탈인포 Ctrl+C ➔ 엑셀 관리대장 자동 생성</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button id="btnPasteText" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg border border-slate-700 flex items-center gap-1.5 transition" title="크리스탈인포에서 Ctrl+C 한 내용을 바로 붙여넣기">
+          <i data-lucide="clipboard-paste" class="w-4 h-4 text-emerald-400"></i>
+          Ctrl+C 텍스트 붙여넣기
+        </button>
+        <button id="btnSample" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg border border-slate-700 flex items-center gap-1.5 transition">
+          <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+          샘플 데이터 체험
+        </button>
+        <button id="btnApiSettings" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg border border-slate-700 flex items-center gap-1.5 transition">
+          <i data-lucide="settings-2" class="w-4 h-4 text-blue-400"></i>
+          엔진/API 설정
+          <span id="apiKeyBadge" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- Free Tier Tip Banner -->
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-700 shadow-xs">
+      <div class="flex items-start gap-3">
+        <div class="p-2 bg-blue-600 text-white rounded-lg mt-0.5 sm:mt-0">
+          <i data-lucide="gift" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <span class="font-bold text-blue-900">결제 중인 유료 API 키가 없으신가요? 3가지 완전 무료 방법 제공!</span>
+          <p class="text-slate-600 mt-0.5 leading-relaxed">
+            ① <strong>Google Gemini 무료 API</strong>: 카드 등록 없이 구글 계정으로 <strong>하루 1,500회 영구 무료</strong><br>
+            ② <strong>로컬 무료 OCR</strong>: API 키 0원으로 브라우저에서 직접 판독<br>
+            ③ <strong>Ctrl+C 초고속 모드</strong>: 크리스탈인포에서 <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold">Ctrl + C</kbd> 복사 후 이 화면에서 <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold">Ctrl + V</kbd> 누르면 오인식 0%로 즉시 등록!
+          </p>
+        </div>
+      </div>
+      <button onclick="document.getElementById('btnApiSettings').click()" class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-2 rounded-lg transition shadow-xs flex items-center gap-1.5">
+        <i data-lucide="key" class="w-3.5 h-3.5"></i> 무료 API 키 발급/설정
+      </button>
+    </div>
+
+    <!-- Upload & Drop Area -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <div id="dropZone" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-blue-500 hover:bg-blue-50/30 transition cursor-pointer flex flex-col items-center justify-center space-y-3">
+        <div class="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+          <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+        </div>
+        <div>
+          <p class="text-base font-semibold text-slate-800">
+            크리스탈인포 스크린샷 이미지 또는 텍스트 리포트(.txt)를 끌어다 놓으세요
+          </p>
+          <p class="text-sm text-slate-500 mt-1">
+            PNG, JPG, TXT, LOG 지원 • 여러 개 일괄 분석 • 또는 화면 어디서든 <span class="text-blue-600 font-semibold font-mono">Ctrl + V</span>로 붙여넣기
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3 pt-2">
+          <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-2">
+            <i data-lucide="file-up" class="w-4 h-4"></i>
+            사진 / TXT 파일 선택
+            <input type="file" id="fileInput" multiple accept="image/*,.txt,.log" class="hidden">
+          </label>
+          <label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2">
+            <i data-lucide="folder" class="w-4 h-4"></i>
+            폴더 선택
+            <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
+          </label>
+        </div>
+      </div>
+
+      <!-- Processing Progress Card -->
+      <div id="progressContainer" class="hidden mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+        <div class="flex justify-between items-center text-sm">
+          <span id="progressText" class="font-medium text-slate-700 flex items-center gap-2">
+            <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-600"></i>
+            이미지 분석 중... (0/0)
+          </span>
+          <span id="progressPercent" class="text-slate-500 font-mono text-xs">0%</span>
+        </div>
+        <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+          <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary KPI Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 font-medium">전체 디스크</p>
+          <p id="kpiTotal" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+          <i data-lucide="layers" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-emerald-600 font-medium">정상</p>
+          <p id="kpiGood" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <i data-lucide="check-circle" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-amber-600 font-medium">주의 (경고)</p>
+          <p id="kpiWarning" class="text-2xl font-bold text-amber-600 mt-1">0</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+          <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-red-600 font-medium">위험 (불량/섹터)</p>
+          <p id="kpiCritical" class="text-2xl font-bold text-red-600 mt-1">0</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+          <i data-lucide="alert-octagon" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 font-medium">총 용량 합계</p>
+          <p id="kpiCapacity" class="text-2xl font-bold text-slate-800 mt-1">0 TB</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+          <i data-lucide="database" class="w-5 h-5"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- S.M.A.R.T. Reference Guide Accordion -->
+    <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+      <button type="button" id="btnToggleSmartGuide" class="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-left text-xs font-bold text-slate-700 transition">
+        <span class="flex items-center gap-2">
+          <i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i>
+          💡 S.M.A.R.T. 4대 핵심 지표 해설 및 대처 요령 (05, C5, C6, C7 이란?)
+        </span>
+        <span class="text-[11px] text-slate-400 font-normal flex items-center gap-1">
+          클릭하여 열기/닫기
+          <i data-lucide="chevron-down" id="smartGuideIcon" class="w-4 h-4 transition-transform duration-200"></i>
+        </span>
+      </button>
+
+      <div id="smartGuideContent" class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs border-t border-slate-200">
+        <!-- 05 Reallocated -->
+        <div class="bg-red-50/70 border border-red-200 rounded-lg p-3 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-red-900 flex items-center gap-1">
+              <span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded font-mono text-[10px]">05</span>
+              재할당된 섹터 수
+            </span>
+            <span class="text-[10px] bg-red-100 text-red-800 font-bold px-1.5 py-0.2 rounded">위험 (0 초과)</span>
+          </div>
+          <p class="text-red-950 text-[11px] leading-relaxed">
+            <strong>배드섹터가 발생</strong>하여 하드 내부의 예비(Spare) 섹터로 교체된 횟수입니다.
+          </p>
+          <div class="text-[11px] text-red-800 bg-red-100/60 p-1.5 rounded">
+            <strong>🚨 대처:</strong> 1개라도 발생 시 <strong>즉시 중요 데이터 백업</strong>. 숫자가 증가하면 디스크 교체 시급.
+          </div>
+        </div>
+
+        <!-- C5 Pending -->
+        <div class="bg-red-50/70 border border-red-200 rounded-lg p-3 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-red-900 flex items-center gap-1">
+              <span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded font-mono text-[10px]">C5</span>
+              보류 중인 섹터 수
+            </span>
+            <span class="text-[10px] bg-red-100 text-red-800 font-bold px-1.5 py-0.2 rounded">위험 (0 초과)</span>
+          </div>
+          <p class="text-red-950 text-[11px] leading-relaxed">
+            읽기 오류로 인해 <strong>재할당을 기다리고 있는 불안정한 섹터</strong>입니다.
+          </p>
+          <div class="text-[11px] text-red-800 bg-red-100/60 p-1.5 rounded">
+            <strong>🚨 대처:</strong> 곧 영구 배드섹터(05)로 고착화될 위험이 큽니다. 데이터 백업 후 디스크 교체 준비.
+          </div>
+        </div>
+
+        <!-- C6 Uncorrectable -->
+        <div class="bg-red-50/70 border border-red-200 rounded-lg p-3 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-red-900 flex items-center gap-1">
+              <span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded font-mono text-[10px]">C6</span>
+              회복 불가능 섹터 수
+            </span>
+            <span class="text-[10px] bg-red-200 text-red-950 font-bold px-1.5 py-0.2 rounded">최고 위험</span>
+          </div>
+          <p class="text-red-950 text-[11px] leading-relaxed">
+            예비 섹터로의 교체조차 실패한 <strong>완전 불량 섹터</strong>입니다.
+          </p>
+          <div class="text-[11px] text-red-900 bg-red-200/60 p-1.5 rounded">
+            <strong>⛔ 대처:</strong> 이미 파일 손상 및 유실이 발생하고 있을 확률 99%. 즉시 사용 중지 및 폐기/교체.
+          </div>
+        </div>
+
+        <!-- C7 CRC -->
+        <div class="bg-amber-50/80 border border-amber-200 rounded-lg p-3 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-amber-900 flex items-center gap-1">
+              <span class="px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded font-mono text-[10px]">C7</span>
+              울트라 DMA CRC 오류
+            </span>
+            <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.2 rounded">주의 (케이블)</span>
+          </div>
+          <p class="text-amber-950 text-[11px] leading-relaxed">
+            디스크와 메인보드 간 <strong>SATA/USB 데이터 전송 중 발생한 통신 오류</strong>입니다.
+          </p>
+          <div class="text-[11px] text-amber-900 bg-amber-100/60 p-1.5 rounded">
+            <strong>⚠️ 대처:</strong> 디스크 본체보다 <strong>SATA 케이블 불량/접촉 불량</strong> 가능성 큼. 케이블 교체 추천.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ledger Table Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+      <!-- Toolbar -->
+      <div class="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <!-- Search & Filter -->
+        <div class="flex items-center gap-3 flex-1 min-w-[280px]">
+          <div class="relative flex-1 max-w-xs">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+            <input type="text" id="searchInput" placeholder="모델명, 일련번호, 드라이브 검색..." class="w-full pl-9 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+
+          <div class="flex items-center bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600">
+            <button class="filter-tab px-3 py-1 rounded-md bg-white shadow-sm text-slate-900" data-filter="all">전체</button>
+            <button class="filter-tab px-3 py-1 rounded-md hover:text-slate-900" data-filter="정상">정상</button>
+            <button class="filter-tab px-3 py-1 rounded-md hover:text-slate-900" data-filter="주의">주의</button>
+            <button class="filter-tab px-3 py-1 rounded-md hover:text-slate-900" data-filter="위험">위험</button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <!-- Import Existing Ledger -->
+          <label class="cursor-pointer text-xs bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium px-3 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+            <i data-lucide="file-up" class="w-4 h-4 text-emerald-600"></i>
+            기존 엑셀 대장 불러오기
+            <input type="file" id="importExcelInput" accept=".xlsx" class="hidden">
+          </label>
+
+          <!-- Export Excel -->
+          <button id="btnExportExcel" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3.5 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            엑셀 다운로드 (.xlsx)
+          </button>
+
+          <!-- Save to workspace file -->
+          <button id="btnSaveLocal" class="text-xs bg-slate-800 hover:bg-slate-700 text-white font-medium px-3 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition" title="현재 폴더의 '디스크관리대장.xlsx'로 바로 저장">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            대장 파일 저장
+          </button>
+
+          <!-- Clear All -->
+          <button id="btnClear" class="text-xs text-rose-600 hover:bg-rose-50 border border-rose-200 font-medium px-2.5 py-2 rounded-lg transition" title="대장 비우기">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Table View -->
+      <div class="overflow-x-auto min-h-[300px]">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-slate-800 text-white font-medium sticky top-0">
+            <tr>
+              <th class="p-3 text-center w-12">No.</th>
+              <th class="p-3 text-center w-14">사진</th>
+              <th class="p-3 text-center w-20">판정</th>
+              <th class="p-3 text-center w-16">드라이브</th>
+              <th class="p-3 min-w-[180px]">모델명</th>
+              <th class="p-3 min-w-[140px] text-center">일련번호 (S/N)</th>
+              <th class="p-3 min-w-[90px] text-right">용량</th>
+              <th class="p-3 min-w-[70px] text-center">온도</th>
+              <th class="p-3 min-w-[120px] text-right">사용 시간</th>
+              <th class="p-3 min-w-[80px] text-right">사용 횟수</th>
+              <th class="p-3 min-w-[100px] text-center bg-slate-900/40 text-red-300 cursor-help" title="[05] 재할당된 섹터 수&#10;• 설명: 배드섹터가 발생하여 예비 섹터로 대체된 횟수입니다.&#10;• 판정: 1개라도 발생하면 위험! 수명 단축 전조 증상&#10;• 조치: 즉시 중요 데이터 백업 권장">
+                <span class="inline-flex items-center gap-1 border-b border-dotted border-red-400/60 pb-0.5">
+                  [05] 재할당
+                  <i data-lucide="help-circle" class="w-3.5 h-3.5 text-red-300"></i>
+                </span>
+              </th>
+              <th class="p-3 min-w-[100px] text-center bg-slate-900/40 text-red-300 cursor-help" title="[C5] 보류 중인 섹터 수&#10;• 설명: 읽기 실패로 예비 영역 재할당을 대기 중인 불안정한 섹터입니다.&#10;• 판정: 치명적 위험 징후! 곧 영구 배드섹터(05)로 고착화됨&#10;• 조치: 즉시 백업 및 디스크 교체 준비">
+                <span class="inline-flex items-center gap-1 border-b border-dotted border-red-400/60 pb-0.5">
+                  [C5] 보류
+                  <i data-lucide="help-circle" class="w-3.5 h-3.5 text-red-300"></i>
+                </span>
+              </th>
+              <th class="p-3 min-w-[105px] text-center bg-slate-900/40 text-red-300 cursor-help" title="[C6] 회복 불가능 섹터 수&#10;• 설명: 자체 검사 중 복구 및 대체조차 실패한 완전 불량 섹터입니다.&#10;• 판정: 매우 위험! 이미 데이터 손실이 진행 중임을 의미&#10;• 조치: 즉시 디스크 교체 및 폐기 대상">
+                <span class="inline-flex items-center gap-1 border-b border-dotted border-red-400/60 pb-0.5">
+                  [C6] 회복불가
+                  <i data-lucide="help-circle" class="w-3.5 h-3.5 text-red-300"></i>
+                </span>
+              </th>
+              <th class="p-3 min-w-[95px] text-center bg-slate-900/40 text-amber-300 cursor-help" title="[C7] 울트라 DMA CRC 오류 횟수&#10;• 설명: 디스크와 메인보드 간 SATA/USB 통신 중 발생한 전송 오류입니다.&#10;• 판정: 디스크 자체보다는 케이블 접촉 불량/노후화 가능성 90%&#10;• 조치: SATA 케이블 교체 또는 단자 재연결">
+                <span class="inline-flex items-center gap-1 border-b border-dotted border-amber-400/60 pb-0.5">
+                  [C7] CRC
+                  <i data-lucide="help-circle" class="w-3.5 h-3.5 text-amber-300"></i>
+                </span>
+              </th>
+              <th class="p-3 min-w-[100px] text-center">회전수</th>
+              <th class="p-3 min-w-[120px]">인터페이스</th>
+              <th class="p-3 min-w-[200px]">점검 소견 / 비고</th>
+              <th class="p-3 text-center w-14">관리</th>
+            </tr>
+          </thead>
+          <tbody id="ledgerTbody" class="divide-y divide-slate-200">
+            <tr id="emptyRow">
+              <td colspan="18" class="text-center py-16 text-slate-400">
+                <i data-lucide="hard-drive" class="w-12 h-12 mx-auto text-slate-300 mb-2"></i>
+                <p class="text-sm font-medium text-slate-600">등록된 디스크가 없습니다.</p>
+                <p class="text-xs text-slate-400 mt-1">상단 영역에 CrystalDiskInfo 스크린샷을 드래그하거나 [샘플 데이터 체험]을 클릭해보세요.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Paste Text Modal -->
+  <div id="pasteModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i data-lucide="clipboard-paste" class="w-5 h-5 text-emerald-400"></i>
+          CrystalDiskInfo 텍스트 붙여넣기
+        </h3>
+        <button id="btnClosePasteModal" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-3">
+        <p class="text-xs text-slate-600">
+          크리스탈인포 창에서 <kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">Ctrl + C</kbd>를 누른 후 아래에 붙여넣기(<kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">Ctrl + V</kbd>)하세요:
+        </p>
+        <textarea id="pasteTextarea" rows="8" placeholder="크리스탈인포에서 복사한 텍스트를 여기에 붙여넣으세요...&#10;Model : ...&#10;Serial Number : ...&#10;-- S.M.A.R.T. --" class="w-full text-xs font-mono p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"></textarea>
+      </div>
+      <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+        <button id="btnCancelPaste" class="px-3 py-2 text-xs text-slate-600 hover:bg-slate-200 rounded-lg">취소</button>
+        <button id="btnSubmitPaste" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition">
+          대장에 즉시 등록
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API / Engine Settings Modal -->
+  <div id="apiModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div class="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i data-lucide="settings" class="w-5 h-5 text-blue-400"></i>
+          AI 엔진 및 옵션 설정
+        </h3>
+        <button id="btnCloseApiModal" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <!-- Provider Selection -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">인식 엔진 선택</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button type="button" class="provider-btn py-2 px-2 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 flex flex-col items-center gap-1" data-provider="gemini">
+              <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.2 rounded">100% 무료</span>
+              <i data-lucide="zap" class="w-4 h-4 text-emerald-600"></i>
+              Gemini
+            </button>
+            <button type="button" class="provider-btn py-2 px-2 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 flex flex-col items-center gap-1" data-provider="local_ocr">
+              <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.2 rounded">키 불필요</span>
+              <i data-lucide="monitor" class="w-4 h-4 text-blue-600"></i>
+              로컬 OCR
+            </button>
+            <button type="button" class="provider-btn py-2 px-2 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 flex flex-col items-center gap-1" data-provider="claude">
+              <span class="text-[10px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded">유료 API</span>
+              <i data-lucide="cpu" class="w-4 h-4 text-purple-600"></i>
+              Claude
+            </button>
+            <button type="button" class="provider-btn py-2 px-2 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 flex flex-col items-center gap-1" data-provider="openai">
+              <span class="text-[10px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded">유료 API</span>
+              <i data-lucide="box" class="w-4 h-4 text-slate-700"></i>
+              OpenAI
+            </button>
+          </div>
+        </div>
+
+        <!-- Gemini Free Guide Card (Visible when Gemini selected) -->
+        <div id="geminiHelpCard" class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900 space-y-2">
+          <div class="font-bold flex items-center gap-1.5">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+            구글 제미나이 무료 API 발급 안내 (카드 등록 불필요!)
+          </div>
+          <p class="text-emerald-800 leading-relaxed text-[11px]">
+            구글 계정만 있으면 <strong>Google AI Studio</strong>에서 클릭 한 번으로 무료 API 키를 발급받을 수 있습니다. <strong>하루 1,500회까지 요금 결제 0원</strong>으로 시즈쿠 에디션 배경까지 완벽하게 인식합니다.
+          </p>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            Google AI Studio에서 무료 키 발급받기
+          </a>
+        </div>
+
+        <!-- Local OCR Info Card (Visible when Local OCR selected) -->
+        <div id="localOcrCard" class="hidden bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 space-y-1">
+          <div class="font-bold flex items-center gap-1.5">
+            <i data-lucide="info" class="w-4 h-4 text-blue-600"></i>
+            로컬 브라우저 내장 OCR 안내
+          </div>
+          <p class="text-blue-800 leading-relaxed text-[11px]">
+            API 키나 외부 서버 없이 브라우저 자체 엔진(Tesseract.js)으로 사진에서 글자를 직접 추출합니다. 완전 오프라인으로 동작하며 요금이 전혀 들지 않습니다.
+          </p>
+        </div>
+
+        <!-- API Key Input -->
+        <div id="apiKeyGroup">
+          <label class="block text-xs font-semibold text-slate-700 mb-1" id="apiKeyLabel">
+            API Key
+          </label>
+          <div class="relative">
+            <input type="password" id="apiKeyInput" placeholder="API 키를 입력하세요" class="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <button type="button" id="btnToggleKeyVisibility" class="absolute right-2 top-2 text-slate-400 hover:text-slate-600">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1">
+            * 입력하신 API 키는 브라우저 내부(localStorage)에만 안전하게 저장됩니다.
+          </p>
+        </div>
+
+        <!-- Duplicate Serial Handling Strategy -->
+        <div class="pt-2 border-t border-slate-100">
+          <label class="block text-xs font-semibold text-slate-700 mb-2">동일 일련번호(S/N) 중복 처리</label>
+          <div class="space-y-1.5 text-xs text-slate-600">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="duplicateStrategy" value="update" checked class="text-blue-600 focus:ring-blue-500">
+              <span><strong>최신 정보로 갱신 (Update)</strong> - 기존 행 업데이트</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="duplicateStrategy" value="append" class="text-blue-600 focus:ring-blue-500">
+              <span><strong>새 이력 행 추가 (Append)</strong> - 시간 경과별 이력 보관</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+        <button id="btnSaveApiModal" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition">
+          설정 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Preview Modal -->
+  <div id="imageModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+      <div class="p-3 bg-slate-800 text-white flex justify-between items-center text-xs">
+        <span id="previewImageTitle" class="font-semibold truncate">원본 스크린샷 미리보기</span>
+        <button id="btnCloseImageModal" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-2 overflow-auto flex items-center justify-center">
+        <img id="previewImageEl" src="" alt="Screenshot Preview" class="max-w-full max-h-[80vh] object-contain rounded-lg">
+      </div>
+    </div>
+  </div>
+
+  <footer class="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-500">
+    CrystalDiskInfo to Ledger • 05/C5/C6 위험 섹터 및 C7 CRC 오류 자동 감지 • 100% 무료 지원
+  </footer>
+
+  <!-- Application Logic -->
+  <script>
+    // State
+    let diskRecords = [];
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let selectedProvider = localStorage.getItem('disk_ai_provider') || 'gemini'; // Default to free Gemini
+    let apiKeys = {
+      gemini: localStorage.getItem('disk_gemini_key') || '',
+      claude: localStorage.getItem('disk_claude_key') || '',
+      openai: localStorage.getItem('disk_openai_key') || ''
+    };
+    let duplicateStrategy = localStorage.getItem('disk_dup_strategy') || 'update';
+
+    // DOM Elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const folderInput = document.getElementById('folderInput');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressPercent = document.getElementById('progressPercent');
+    const ledgerTbody = document.getElementById('ledgerTbody');
+    const searchInput = document.getElementById('searchInput');
+    const btnSample = document.getElementById('btnSample');
+    const btnExportExcel = document.getElementById('btnExportExcel');
+    const btnSaveLocal = document.getElementById('btnSaveLocal');
+    const btnClear = document.getElementById('btnClear');
+    const importExcelInput = document.getElementById('importExcelInput');
+
+    // Paste Modal
+    const btnPasteText = document.getElementById('btnPasteText');
+    const pasteModal = document.getElementById('pasteModal');
+    const btnClosePasteModal = document.getElementById('btnClosePasteModal');
+    const btnCancelPaste = document.getElementById('btnCancelPaste');
+    const btnSubmitPaste = document.getElementById('btnSubmitPaste');
+    const pasteTextarea = document.getElementById('pasteTextarea');
+
+    // KPI Elements
+    const kpiTotal = document.getElementById('kpiTotal');
+    const kpiGood = document.getElementById('kpiGood');
+    const kpiWarning = document.getElementById('kpiWarning');
+    const kpiCritical = document.getElementById('kpiCritical');
+    const kpiCapacity = document.getElementById('kpiCapacity');
+
+    // API Modal Elements
+    const apiModal = document.getElementById('apiModal');
+    const btnApiSettings = document.getElementById('btnApiSettings');
+    const btnCloseApiModal = document.getElementById('btnCloseApiModal');
+    const btnSaveApiModal = document.getElementById('btnSaveApiModal');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const apiKeyLabel = document.getElementById('apiKeyLabel');
+    const apiKeyBadge = document.getElementById('apiKeyBadge');
+    const btnToggleKeyVisibility = document.getElementById('btnToggleKeyVisibility');
+    const apiKeyGroup = document.getElementById('apiKeyGroup');
+    const geminiHelpCard = document.getElementById('geminiHelpCard');
+    const localOcrCard = document.getElementById('localOcrCard');
+
+    // Image Preview Modal Elements
+    const imageModal = document.getElementById('imageModal');
+    const btnCloseImageModal = document.getElementById('btnCloseImageModal');
+    const previewImageEl = document.getElementById('previewImageEl');
+    const previewImageTitle = document.getElementById('previewImageTitle');
+
+    function init() {
+      lucide.createIcons();
+      updateApiKeyBadge();
+      loadSavedRecords();
+      renderTable();
+      updateKPIs();
+      setupEventListeners();
+      setupClipboardListener();
+    }
+
+    function updateApiKeyBadge() {
+      if (selectedProvider === 'local_ocr') {
+        apiKeyBadge.className = 'w-2 h-2 rounded-full bg-blue-400';
+        apiKeyBadge.title = '로컬 무료 OCR 모드 활성화됨';
+        return;
+      }
+      const currentKey = apiKeys[selectedProvider];
+      if (currentKey && currentKey.trim().length > 5) {
+        apiKeyBadge.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        apiKeyBadge.title = 'API 키 등록됨';
+      } else {
+        apiKeyBadge.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+        apiKeyBadge.title = '무료 API 키 또는 로컬 OCR 선택 가능';
+      }
+    }
+
+    function loadSavedRecords() {
+      const saved = localStorage.getItem('disk_records_cache');
+      if (saved) {
+        try { diskRecords = JSON.parse(saved); } catch (e) { diskRecords = []; }
+      }
+    }
+
+    function saveRecords() {
+      localStorage.setItem('disk_records_cache', JSON.stringify(diskRecords));
+      updateKPIs();
+      renderTable();
+    }
+
+    function updateKPIs() {
+      kpiTotal.textContent = diskRecords.length;
+      kpiGood.textContent = diskRecords.filter(r => r.overallVerdict === '정상').length;
+      kpiWarning.textContent = diskRecords.filter(r => r.overallVerdict === '주의').length;
+      kpiCritical.textContent = diskRecords.filter(r => r.overallVerdict === '위험').length;
+
+      let totalGB = 0;
+      diskRecords.forEach(r => {
+        const capStr = (r.capacity || '').toUpperCase();
+        if (capStr.includes('TB')) totalGB += (parseFloat(capStr) || 0) * 1024;
+        else if (capStr.includes('GB')) totalGB += parseFloat(capStr) || 0;
+      });
+      kpiCapacity.textContent = totalGB > 0 ? `${(totalGB / 1024).toFixed(1)} TB` : '0 TB';
+    }
+
+    function formatHours(hours) {
+      if (!hours || isNaN(hours)) return '-';
+      const h = Number(hours);
+      const years = (h / (24 * 365.25)).toFixed(1);
+      if (h >= 8760) return `${h.toLocaleString()} 시간 (${years}년)`;
+      return `${h.toLocaleString()} 시간`;
+    }
+
+    function renderTable() {
+      const filtered = diskRecords.filter(item => {
+        const matchFilter = currentFilter === 'all' || item.overallVerdict === currentFilter;
+        if (!matchFilter) return false;
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          (item.model && item.model.toLowerCase().includes(q)) ||
+          (item.serialNumber && item.serialNumber.toLowerCase().includes(q)) ||
+          (item.driveLetter && item.driveLetter.toLowerCase().includes(q)) ||
+          (item.notes && item.notes.toLowerCase().includes(q))
+        );
+      });
+
+      if (filtered.length === 0) {
+        ledgerTbody.innerHTML = `
+          <tr>
+            <td colspan="18" class="text-center py-12 text-slate-400">
+              <i data-lucide="hard-drive" class="w-10 h-10 mx-auto text-slate-300 mb-2"></i>
+              <p class="text-sm font-medium text-slate-600">표시할 디스크 항목이 없습니다.</p>
+              ${diskRecords.length > 0 ? '<p class="text-xs text-slate-400 mt-1">검색어나 필터 조건을 변경해보세요.</p>' : ''}
+            </td>
+          </tr>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      ledgerTbody.innerHTML = filtered.map((item, idx) => {
+        const s05 = Number(item.smart?.['05_reallocated']?.dec ?? item.s05 ?? 0);
+        const sC5 = Number(item.smart?.['C5_pending']?.dec ?? item.sC5 ?? 0);
+        const sC6 = Number(item.smart?.['C6_uncorrectable']?.dec ?? item.sC6 ?? 0);
+        const sC7 = Number(item.smart?.['C7_crc']?.dec ?? item.sC7 ?? 0);
+        const temp = Number(item.temperature ?? 0);
+        const verdict = item.overallVerdict || '정상';
+
+        let verdictClass = 'badge-good';
+        if (verdict === '위험') verdictClass = 'badge-critical';
+        else if (verdict === '주의') verdictClass = 'badge-warning';
+
+        const rowBgClass = verdict === '위험' ? 'bg-red-50/50 hover:bg-red-50' : (verdict === '주의' ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-slate-50');
+        const imgSrc = item.thumbnailData || item.imageUrl || '';
+
+        return `
+          <tr class="${rowBgClass} transition duration-150" data-id="${item.id}">
+            <td class="p-3 text-center font-mono text-slate-400">${idx + 1}</td>
+            <td class="p-3 text-center">
+              ${imgSrc ? `
+                <button onclick="openImageModal('${imgSrc}', '${item.model || ''}')" class="w-9 h-9 rounded border border-slate-200 overflow-hidden shadow-xs hover:ring-2 hover:ring-blue-500 transition inline-block">
+                  <img src="${imgSrc}" class="w-full h-full object-cover">
+                </button>
+              ` : `
+                <span class="text-slate-300"><i data-lucide="file-text" class="w-4 h-4 mx-auto text-slate-400" title="텍스트/Ctrl+C 등록"></i></span>
+              `}
+            </td>
+            <td class="p-3 text-center">
+              <span class="inline-block px-2.5 py-0.5 rounded-full text-xs ${verdictClass}">${verdict}</span>
+            </td>
+            <td class="p-3 text-center font-bold text-blue-600">${item.driveLetter || '-'}</td>
+            <td class="p-3 font-semibold text-slate-800">${item.model || '-'}</td>
+            <td class="p-3 text-center font-mono text-slate-700 bg-slate-50/80 rounded">${item.serialNumber || '-'}</td>
+            <td class="p-3 text-right font-medium text-slate-700">${item.capacity || '-'}</td>
+            <td class="p-3 text-center ${temp >= 50 ? 'text-red-600 font-bold' : 'text-slate-700'}">${temp ? `${temp}°C` : '-'}</td>
+            <td class="p-3 text-right text-slate-700">${formatHours(item.powerOnHours)}</td>
+            <td class="p-3 text-right text-slate-700">${item.powerOnCount ? `${Number(item.powerOnCount).toLocaleString()}회` : '-'}</td>
+            
+            <!-- SMART Critical Values -->
+            <td class="p-3 text-center font-mono ${s05 > 0 ? 'bg-red-200 text-red-900 font-bold' : 'text-slate-400'}">${s05}</td>
+            <td class="p-3 text-center font-mono ${sC5 > 0 ? 'bg-red-200 text-red-900 font-bold' : 'text-slate-400'}">${sC5}</td>
+            <td class="p-3 text-center font-mono ${sC6 > 0 ? 'bg-red-200 text-red-900 font-bold' : 'text-slate-400'}">${sC6}</td>
+            <td class="p-3 text-center font-mono ${sC7 > 0 ? 'bg-amber-200 text-amber-900 font-bold' : 'text-slate-400'}">${sC7}</td>
+
+            <td class="p-3 text-center text-slate-600">${item.rotationRate || '-'}</td>
+            <td class="p-3 text-slate-600 truncate max-w-[140px]" title="${item.interface || ''}">${item.interface || '-'}</td>
+            <td class="p-3 text-slate-600 text-[11px] leading-tight" title="${item.notes || ''}">
+              <div class="line-clamp-2">${item.notes || '-'}</div>
+            </td>
+            <td class="p-3 text-center">
+              <button onclick="deleteRecord('${item.id}')" class="text-slate-400 hover:text-red-600 transition p-1" title="삭제">
+                <i data-lucide="trash" class="w-4 h-4"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // Modal Image Preview
+    window.openImageModal = function(src, title) {
+      previewImageEl.src = src;
+      previewImageTitle.textContent = title ? `${title} - 원본 스크린샷` : '원본 스크린샷';
+      imageModal.classList.remove('hidden');
+    };
+
+    window.deleteRecord = function(id) {
+      if (confirm('이 디스크 항목을 대장에서 삭제하시겠습니까?')) {
+        diskRecords = diskRecords.filter(r => r.id !== id);
+        saveRecords();
+      }
+    };
+
+    // Global Clipboard (Ctrl+V) listener
+    function setupClipboardListener() {
+      window.addEventListener('paste', async (e) => {
+        // If an input is focused, let normal paste happen
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+        const text = e.clipboardData.getData('text');
+        if (text && (text.includes('CrystalDiskInfo') || text.includes('Model') || text.includes('모델'))) {
+          e.preventDefault();
+          await parseAndAddText(text);
+          return;
+        }
+
+        // Image paste
+        const items = e.clipboardData.items;
+        for (let item of items) {
+          if (item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              processFiles([file]);
+              return;
+            }
+          }
+        }
+      });
+    }
+
+    // Client-side CrystalDiskInfo Text Parser (zero-latency, no server dependency)
+    function parseClientDiskInfoText(text) {
+      if (!text || typeof text !== 'string') return [];
+
+      function parseBlock(blockText) {
+        const lines = blockText.split(/\r?\n/);
+        const result = {
+          model: '',
+          capacity: '',
+          firmware: '',
+          serialNumber: '',
+          interface: '',
+          transferMode: '',
+          driveLetter: '',
+          rotationRate: '',
+          powerOnHours: 0,
+          powerOnCount: 0,
+          temperature: 0,
+          healthStatus: '좋음',
+          smart: {
+            '01_readError': { hex: '000000000000', dec: 0 },
+            '05_reallocated': { hex: '000000000000', dec: 0 },
+            'C5_pending': { hex: '000000000000', dec: 0 },
+            'C6_uncorrectable': { hex: '000000000000', dec: 0 },
+            'C7_crc': { hex: '000000000000', dec: 0 }
+          },
+          overallVerdict: '정상',
+          notes: ''
+        };
+
+        let inSmart = false;
+        for (let line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          const colonIdx = trimmed.indexOf(':');
+          if (colonIdx > 0 && !inSmart) {
+            const key = trimmed.substring(0, colonIdx).trim().toLowerCase();
+            const val = trimmed.substring(colonIdx + 1).trim();
+
+            if (key === 'model' || key.includes('모델')) result.model = val;
+            else if (key === 'serial number' || key.includes('일련번호') || key === 's/n') result.serialNumber = val;
+            else if (key === 'disk size' || key.includes('용량') || key === 'capacity') {
+              result.capacity = val.split('(')[0].trim() || val;
+            }
+            else if (key === 'firmware' || key.includes('펌웨어')) result.firmware = val;
+            else if (key === 'interface' || key.includes('인터페이스')) result.interface = val;
+            else if (key === 'transfer mode' || key.includes('전송 모드') || key.includes('전송모드')) result.transferMode = val;
+            else if (key === 'rotation rate' || key.includes('회전 속도') || key.includes('회전수')) result.rotationRate = val;
+            else if (key === 'drive letter' || key.includes('드라이브 문자') || key.includes('드라이브')) result.driveLetter = val;
+            else if (key === 'power on hours' || key.includes('사용 시간') || key.includes('사용시간')) {
+              const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
+              if (!isNaN(num)) result.powerOnHours = num;
+            }
+            else if (key === 'power on count' || key.includes('사용 횟수') || key.includes('사용횟수')) {
+              const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
+              if (!isNaN(num)) result.powerOnCount = num;
+            }
+            else if (key === 'temperature' || key.includes('온도')) {
+              const m = val.match(/(\d+)\s*[cC]/) || val.match(/^(\d+)/);
+              if (m) result.temperature = parseInt(m[1], 10);
+            }
+            else if (key === 'health status' || key.includes('건강 상태') || key.includes('건강상태')) {
+              result.healthStatus = val;
+            }
+          }
+
+          if (trimmed.includes('-- S.M.A.R.T.') || trimmed.includes('ID Cur Wor Thr') || trimmed.includes('ID RawValues')) {
+            inSmart = true;
+            continue;
+          }
+          if (inSmart && trimmed.startsWith('-- ')) {
+            inSmart = false;
+            continue;
+          }
+
+          if (inSmart) {
+            const match = trimmed.match(/^([0-9A-Fa-f]{2})\s+(.+)/);
+            if (match) {
+              const id = match[1].toUpperCase();
+              const rest = match[2];
+              const hexMatch = rest.match(/([0-9A-Fa-f]{8,12})/);
+              if (hexMatch) {
+                const hexVal = hexMatch[1];
+                const decVal = parseInt(hexVal, 16) || 0;
+                if (id === '05' && !result.interface.includes('NVM')) {
+                  result.smart['05_reallocated'] = { hex: hexVal, dec: decVal };
+                } else if (id === 'C5') {
+                  result.smart['C5_pending'] = { hex: hexVal, dec: decVal };
+                } else if (id === 'C6') {
+                  result.smart['C6_uncorrectable'] = { hex: hexVal, dec: decVal };
+                } else if (id === 'C7') {
+                  result.smart['C7_crc'] = { hex: hexVal, dec: decVal };
+                } else if (id === '01') {
+                  result.smart['01_readError'] = { hex: hexVal, dec: decVal };
+                }
+              }
+            }
+          }
+        }
+
+        if (!result.model && !result.serialNumber) return null;
+
+        const s05 = result.smart['05_reallocated']?.dec || 0;
+        const sC5 = result.smart['C5_pending']?.dec || 0;
+        const sC6 = result.smart['C6_uncorrectable']?.dec || 0;
+        const sC7 = result.smart['C7_crc']?.dec || 0;
+        const temp = result.temperature;
+        const health = (result.healthStatus || '').toLowerCase();
+
+        const isCritical = (
+          s05 > 0 || sC5 > 0 || sC6 > 0 ||
+          health.includes('위험') || health.includes('bad') || health.includes('fail')
+        );
+
+        const isWarning = (
+          !isCritical && (
+            health.includes('주의') || health.includes('caution') || health.includes('warn') ||
+            sC7 > 0 || temp >= 50
+          )
+        );
+
+        let verdict = '정상';
+        if (isCritical) verdict = '위험';
+        else if (isWarning) verdict = '주의';
+
+        let issues = [];
+        if (s05 > 0) issues.push(`재할당 섹터(${s05}개) 발생`);
+        if (sC5 > 0) issues.push(`보류 중 섹터(${sC5}개) 발생`);
+        if (sC6 > 0) issues.push(`회복 불가 섹터(${sC6}개) 발생`);
+        if (sC7 > 0) issues.push(`CRC 오류(${sC7}회)`);
+        if (temp >= 50) issues.push(`고온(${temp}°C)`);
+
+        result.overallVerdict = verdict;
+        result.notes = issues.length > 0 ? issues.join(', ') : '섹터 오류 없음, 상태 양호';
+
+        return result;
+      }
+
+      // Check multi-disk headers
+      const diskHeaderRegex = /-{40,}\r?\n\s*\(([0-9]{2})\)\s+[^\r\n]+\r?\n-{40,}/g;
+      const matches = [...text.matchAll(diskHeaderRegex)];
+
+      if (matches.length > 0) {
+        const disks = [];
+        for (let i = 0; i < matches.length; i++) {
+          const startIndex = matches[i].index;
+          const endIndex = (i + 1 < matches.length) ? matches[i + 1].index : text.length;
+          const block = text.substring(startIndex, endIndex);
+          const parsed = parseBlock(block);
+          if (parsed) disks.push(parsed);
+        }
+        if (disks.length > 0) return disks;
+      }
+
+      const single = parseBlock(text);
+      return single ? [single] : [];
+    }
+
+    function parseAndAddText(text) {
+      try {
+        const parsedList = parseClientDiskInfoText(text);
+        if (!parsedList || parsedList.length === 0) {
+          alert('유효한 CrystalDiskInfo 텍스트 형식을 찾지 못했습니다.\n크리스탈인포 창에서 Ctrl+C 후 다시 붙여넣어 주세요.');
+          return;
+        }
+
+        const disks = parsedList.map((d, idx) => ({
+          ...d,
+          id: `disk_${Date.now()}_${idx}`,
+          recordDate: new Date().toISOString().replace('T', ' ').substring(0, 16),
+          sourceFile: '클립보드(Ctrl+V)'
+        }));
+
+        mergeIntoRecords(disks);
+        saveRecords();
+
+        const summary = disks.map(d => `• [${d.driveLetter || '-'}] ${d.model} (${d.overallVerdict})`).join('\n');
+        alert(`[클립보드 등록 완료: 총 ${disks.length}대]\n\n${summary}\n\n관리대장에 성공적으로 추가되었습니다!`);
+      } catch (err) {
+        alert('텍스트 처리 중 오류: ' + err.message);
+      }
+    }
+
+    function setupEventListeners() {
+      // S.M.A.R.T. Guide Accordion Toggle
+      const btnToggleSmartGuide = document.getElementById('btnToggleSmartGuide');
+      const smartGuideContent = document.getElementById('smartGuideContent');
+      const smartGuideIcon = document.getElementById('smartGuideIcon');
+      btnToggleSmartGuide.addEventListener('click', () => {
+        smartGuideContent.classList.toggle('hidden');
+        smartGuideIcon.classList.toggle('rotate-180');
+      });
+
+      // Drag & Drop
+      ['dragenter', 'dragover'].forEach(evt => {
+        dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.add('drag-active'); });
+      });
+      ['dragleave', 'drop'].forEach(evt => {
+        dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.remove('drag-active'); });
+      });
+      // Unified File Processing (Supports Images + TXT/LOG Files)
+      function handleIncomingFiles(files) {
+        if (!files || files.length === 0) return;
+        const textFiles = [];
+        const imageFiles = [];
+
+        for (let file of files) {
+          const ext = file.name.split('.').pop().toLowerCase();
+          if (ext === 'txt' || ext === 'log' || file.type.startsWith('text/')) {
+            textFiles.push(file);
+          } else if (file.type.startsWith('image/')) {
+            imageFiles.push(file);
+          }
+        }
+
+        if (textFiles.length > 0) {
+          processTextFiles(textFiles);
+        }
+        if (imageFiles.length > 0) {
+          processFiles(imageFiles);
+        }
+
+        if (textFiles.length === 0 && imageFiles.length === 0) {
+          alert('지원하는 파일 형식이 아닙니다.\n(이미지: PNG, JPG 등 / 텍스트: TXT, LOG 지원)');
+        }
+      }
+
+      async function processTextFiles(files) {
+        let totalAdded = 0;
+        const summaries = [];
+
+        for (let file of files) {
+          try {
+            const text = await file.text();
+            const parsedList = parseClientDiskInfoText(text);
+            if (parsedList && parsedList.length > 0) {
+              const disks = parsedList.map((d, idx) => ({
+                ...d,
+                id: `disk_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
+                recordDate: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                sourceFile: file.name
+              }));
+              mergeIntoRecords(disks);
+              totalAdded += disks.length;
+              summaries.push(`• [${file.name}] ${disks.length}대 인식 완료`);
+            }
+          } catch (e) {
+            console.error('Error reading text file:', file.name, e);
+          }
+        }
+
+        if (totalAdded > 0) {
+          saveRecords();
+          alert(`[TXT 파일 등록 완료: 총 ${totalAdded}대]\n\n` + summaries.join('\n') + '\n\n관리대장에 성공적으로 반영되었습니다!');
+        } else {
+          alert('선택한 텍스트 파일에서 유효한 CrystalDiskInfo 정보를 찾지 못했습니다.');
+        }
+      }
+
+      dropZone.addEventListener('drop', (e) => {
+        const files = Array.from(e.dataTransfer.files);
+        handleIncomingFiles(files);
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        handleIncomingFiles(files);
+        fileInput.value = '';
+      });
+      folderInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        handleIncomingFiles(files);
+        folderInput.value = '';
+      });
+
+      // Search & Filter
+      searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value.trim();
+        renderTable();
+      });
+
+      document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.filter-tab').forEach(t => {
+            t.classList.remove('bg-white', 'shadow-sm', 'text-slate-900');
+            t.classList.add('hover:text-slate-900');
+          });
+          tab.classList.add('bg-white', 'shadow-sm', 'text-slate-900');
+          tab.classList.remove('hover:text-slate-900');
+          currentFilter = tab.dataset.filter;
+          renderTable();
+        });
+      });
+
+      // Sample Button
+      btnSample.addEventListener('click', async () => {
+        try {
+          const res = await fetch('/api/sample');
+          const json = await res.json();
+          if (json.success && json.data) {
+            mergeIntoRecords(json.data);
+            saveRecords();
+            alert('샘플 디스크(HGST 4TB) 정보가 대장에 추가되었습니다!');
+          }
+        } catch (e) {
+          alert('샘플 로드 실패: ' + e.message);
+        }
+      });
+
+      // Clear Button
+      btnClear.addEventListener('click', () => {
+        if (diskRecords.length === 0) return;
+        if (confirm('관리대장의 모든 디스크 항목을 초기화하시겠습니까?')) {
+          diskRecords = [];
+          saveRecords();
+        }
+      });
+
+      // Export Excel
+      btnExportExcel.addEventListener('click', async () => {
+        if (diskRecords.length === 0) return alert('내보낼 디스크 데이터가 없습니다.');
+        try {
+          btnExportExcel.disabled = true;
+          btnExportExcel.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 생성 중...';
+          lucide.createIcons();
+
+          const res = await fetch('/api/export-excel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ records: diskRecords })
+          });
+          if (!res.ok) throw new Error('엑셀 파일 생성 실패');
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `디스크관리대장_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (e) {
+          alert('엑셀 다운로드 중 오류: ' + e.message);
+        } finally {
+          btnExportExcel.disabled = false;
+          btnExportExcel.innerHTML = '<i data-lucide="file-spreadsheet" class="w-4 h-4"></i> 엑셀 다운로드 (.xlsx)';
+          lucide.createIcons();
+        }
+      });
+
+      // Save Local Workspace File
+      btnSaveLocal.addEventListener('click', async () => {
+        if (diskRecords.length === 0) return alert('저장할 디스크 데이터가 없습니다.');
+        try {
+          const res = await fetch('/api/save-local-ledger', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ records: diskRecords })
+          });
+          const json = await res.json();
+          if (json.success) alert('작업 폴더의 [디스크관리대장.xlsx]에 저장되었습니다!\n' + json.filePath);
+          else throw new Error(json.error);
+        } catch (e) {
+          alert('저장 실패: ' + e.message);
+        }
+      });
+
+      // Import Existing Excel Ledger
+      importExcelInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const res = await fetch('/api/import-excel', { method: 'POST', body: formData });
+          const json = await res.json();
+          if (json.success && json.data) {
+            mergeIntoRecords(json.data);
+            saveRecords();
+            alert(`기존 엑셀 대장에서 ${json.count}개의 디스크 정보를 성공적으로 불러왔습니다!`);
+          } else throw new Error(json.error);
+        } catch (err) {
+          alert('엑셀 불러오기 실패: ' + err.message);
+        } finally {
+          importExcelInput.value = '';
+        }
+      });
+
+      // Paste Modal
+      btnPasteText.addEventListener('click', () => {
+        pasteTextarea.value = '';
+        pasteModal.classList.remove('hidden');
+        pasteTextarea.focus();
+      });
+      btnClosePasteModal.addEventListener('click', () => pasteModal.classList.add('hidden'));
+      btnCancelPaste.addEventListener('click', () => pasteModal.classList.add('hidden'));
+      btnSubmitPaste.addEventListener('click', async () => {
+        const text = pasteTextarea.value.trim();
+        if (!text) return alert('붙여넣을 텍스트를 입력해주세요.');
+        pasteModal.classList.add('hidden');
+        await parseAndAddText(text);
+      });
+
+      // Engine / API Settings Modal
+      btnApiSettings.addEventListener('click', () => {
+        updateApiModalFields();
+        apiModal.classList.remove('hidden');
+      });
+      btnCloseApiModal.addEventListener('click', () => apiModal.classList.add('hidden'));
+      btnCloseImageModal.addEventListener('click', () => imageModal.classList.add('hidden'));
+
+      document.querySelectorAll('.provider-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.provider-btn').forEach(b => {
+            b.classList.remove('active', 'border-blue-500', 'bg-blue-50', 'text-blue-700');
+            b.classList.add('border-slate-200', 'text-slate-700');
+          });
+          btn.classList.add('active', 'border-blue-500', 'bg-blue-50', 'text-blue-700');
+          btn.classList.remove('border-slate-200', 'text-slate-700');
+          selectedProvider = btn.dataset.provider;
+          updateApiModalFields();
+        });
+      });
+
+      btnSaveApiModal.addEventListener('click', () => {
+        if (selectedProvider !== 'local_ocr') {
+          const keyVal = apiKeyInput.value.trim();
+          apiKeys[selectedProvider] = keyVal;
+          localStorage.setItem(`disk_${selectedProvider}_key`, keyVal);
+        }
+        localStorage.setItem('disk_ai_provider', selectedProvider);
+
+        const dupVal = document.querySelector('input[name="duplicateStrategy"]:checked')?.value || 'update';
+        duplicateStrategy = dupVal;
+        localStorage.setItem('disk_dup_strategy', duplicateStrategy);
+
+        updateApiKeyBadge();
+        apiModal.classList.add('hidden');
+        alert('설정이 저장되었습니다!');
+      });
+
+      btnToggleKeyVisibility.addEventListener('click', () => {
+        if (apiKeyInput.type === 'password') {
+          apiKeyInput.type = 'text';
+          btnToggleKeyVisibility.innerHTML = '<i data-lucide="eye-off" class="w-4 h-4"></i>';
+        } else {
+          apiKeyInput.type = 'password';
+          btnToggleKeyVisibility.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i>';
+        }
+        lucide.createIcons();
+      });
+    }
+
+    function updateApiModalFields() {
+      // Highlight active provider button
+      document.querySelectorAll('.provider-btn').forEach(b => {
+        if (b.dataset.provider === selectedProvider) {
+          b.classList.add('active', 'border-blue-500', 'bg-blue-50', 'text-blue-700');
+          b.classList.remove('border-slate-200', 'text-slate-700');
+        } else {
+          b.classList.remove('active', 'border-blue-500', 'bg-blue-50', 'text-blue-700');
+          b.classList.add('border-slate-200', 'text-slate-700');
+        }
+      });
+
+      if (selectedProvider === 'gemini') {
+        apiKeyGroup.classList.remove('hidden');
+        geminiHelpCard.classList.remove('hidden');
+        localOcrCard.classList.add('hidden');
+        apiKeyLabel.textContent = 'Google Gemini 무료 API 키 (AIzaSy...)';
+        apiKeyInput.placeholder = 'AIzaSy... (구글 계정으로 무료 발급)';
+        apiKeyInput.value = apiKeys.gemini || '';
+      } else if (selectedProvider === 'local_ocr') {
+        apiKeyGroup.classList.add('hidden');
+        geminiHelpCard.classList.add('hidden');
+        localOcrCard.classList.remove('hidden');
+      } else if (selectedProvider === 'claude') {
+        apiKeyGroup.classList.remove('hidden');
+        geminiHelpCard.classList.add('hidden');
+        localOcrCard.classList.add('hidden');
+        apiKeyLabel.textContent = 'Anthropic Claude API Key (sk-ant-...)';
+        apiKeyInput.placeholder = 'sk-ant-api03-...';
+        apiKeyInput.value = apiKeys.claude || '';
+      } else if (selectedProvider === 'openai') {
+        apiKeyGroup.classList.remove('hidden');
+        geminiHelpCard.classList.add('hidden');
+        localOcrCard.classList.add('hidden');
+        apiKeyLabel.textContent = 'OpenAI API Key (sk-...)';
+        apiKeyInput.placeholder = 'sk-proj-...';
+        apiKeyInput.value = apiKeys.openai || '';
+      }
+    }
+
+    function mergeIntoRecords(newItems) {
+      for (const item of newItems) {
+        if (!item.serialNumber) {
+          diskRecords.push({ ...item, id: item.id || `disk_${Date.now()}_${Math.random().toString(36).substr(2, 5)}` });
+          continue;
+        }
+
+        const cleanSN = String(item.serialNumber).trim().toUpperCase();
+        const existingIdx = diskRecords.findIndex(r => r.serialNumber && String(r.serialNumber).trim().toUpperCase() === cleanSN);
+
+        if (existingIdx !== -1 && duplicateStrategy === 'update') {
+          diskRecords[existingIdx] = {
+            ...diskRecords[existingIdx],
+            ...item,
+            recordDate: new Date().toISOString().replace('T', ' ').substring(0, 16)
+          };
+        } else {
+          diskRecords.push({
+            ...item,
+            id: item.id || `disk_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            recordDate: item.recordDate || new Date().toISOString().replace('T', ' ').substring(0, 16)
+          });
+        }
+      }
+    }
+
+    // Process Files Upload (Server AI or Local OCR)
+    async function processFiles(files) {
+      if (selectedProvider === 'local_ocr') {
+        // Run Local Tesseract OCR
+        await processFilesWithLocalOcr(files);
+        return;
+      }
+
+      const activeKey = apiKeys[selectedProvider];
+      if (!activeKey) {
+        apiModal.classList.remove('hidden');
+        alert(`${selectedProvider.toUpperCase()} API 키가 아직 설정되지 않았습니다.\n\n[무료 사용 안내]\n1. 구글 Gemini를 선택하시면 카드 등록 없이 1분 만에 100% 무료 키를 발급받으실 수 있습니다.\n2. 또는 [로컬 OCR]을 선택하시면 키 없이 바로 분석 가능합니다.`);
+        return;
+      }
+
+      progressContainer.classList.remove('hidden');
+      progressBar.style.width = '0%';
+      progressText.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-600"></i> 이미지 분석 준비 중... (총 ${files.length}장)`;
+      progressPercent.textContent = '0%';
+      lucide.createIcons();
+
+      const batchSize = 2;
+      let processedCount = 0;
+      const allResults = [];
+      const errorList = [];
+
+      for (let i = 0; i < files.length; i += batchSize) {
+        const batch = files.slice(i, i + batchSize);
+        const formData = new FormData();
+        batch.forEach(f => formData.append('images', f));
+        formData.append('provider', selectedProvider);
+        formData.append('apiKey', activeKey);
+
+        try {
+          progressText.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-600"></i> AI 비전 분석 진행 중... (${processedCount}/${files.length})`;
+          lucide.createIcons();
+
+          const res = await fetch('/api/scan', { method: 'POST', body: formData });
+          const json = await res.json();
+
+          if (json.success && json.data) {
+            allResults.push(...json.data);
+            mergeIntoRecords(json.data);
+            saveRecords();
+          }
+          if (json.errors) errorList.push(...json.errors);
+        } catch (err) {
+          errorList.push({ file: 'Batch', error: err.message });
+        }
+
+        processedCount += batch.length;
+        const pct = Math.min(100, Math.round((processedCount / files.length) * 100));
+        progressBar.style.width = `${pct}%`;
+        progressPercent.textContent = `${pct}%`;
+      }
+
+      progressText.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> 분석 완료! (성공 ${allResults.length}개 / 실패 ${errorList.length}개)`;
+      lucide.createIcons();
+      setTimeout(() => progressContainer.classList.add('hidden'), 3500);
+
+      if (errorList.length > 0) {
+        alert(`일부 이미지 처리 실패 (${errorList.length}건):\n` + errorList.map(e => `${e.file}: ${e.error}`).join('\n'));
+      }
+    }
+
+    // Local Browser OCR fallback
+    async function processFilesWithLocalOcr(files) {
+      progressContainer.classList.remove('hidden');
+      progressBar.style.width = '0%';
+      progressText.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-600"></i> 로컬 OCR 엔진 가동 중...`;
+      progressPercent.textContent = '0%';
+      lucide.createIcons();
+
+      try {
+        const worker = await Tesseract.createWorker(['kor', 'eng']);
+        let count = 0;
+
+        for (let file of files) {
+          progressText.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-600"></i> 로컬 OCR 분석 중: ${file.name} (${count + 1}/${files.length})`;
+          lucide.createIcons();
+
+          const ret = await worker.recognize(file);
+          const rawText = ret.data.text;
+
+          // Parse with client parser
+          const parsedDisks = parseClientDiskInfoText(rawText);
+
+          if (parsedDisks && parsedDisks.length > 0) {
+            const disks = parsedDisks.map((d, i) => ({
+              ...d,
+              id: `disk_${Date.now()}_${i}`,
+              recordDate: new Date().toISOString().replace('T', ' ').substring(0, 16),
+              sourceFile: file.name,
+              thumbnailData: URL.createObjectURL(file)
+            }));
+            mergeIntoRecords(disks);
+            saveRecords();
+          } else {
+            // Fallback basic item if text structure is noisy
+            const basicDisk = {
+              id: `disk_${Date.now()}_${count}`,
+              model: file.name.replace(/\.[^/.]+$/, ''),
+              serialNumber: '수정 필요',
+              capacity: '확인 필요',
+              recordDate: new Date().toISOString().replace('T', ' ').substring(0, 16),
+              overallVerdict: '주의',
+              notes: '로컬 OCR 텍스트 추출 완료 (내용 확인 및 수정 권장)',
+              sourceFile: file.name,
+              thumbnailData: URL.createObjectURL(file)
+            };
+            mergeIntoRecords([basicDisk]);
+            saveRecords();
+          }
+
+          count++;
+          const pct = Math.round((count / files.length) * 100);
+          progressBar.style.width = `${pct}%`;
+          progressPercent.textContent = `${pct}%`;
+        }
+
+        await worker.terminate();
+        progressText.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> 로컬 OCR 분석 완료 (${files.length}장)!`;
+        lucide.createIcons();
+        setTimeout(() => progressContainer.classList.add('hidden'), 3500);
+      } catch (err) {
+        alert('로컬 OCR 오류: ' + err.message);
+        progressContainer.classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
