@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "scan": "node scan.js"
+    "scan": "node scan.js",
+    "push": "node push.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
